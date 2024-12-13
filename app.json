@@ -4,10 +4,10 @@
     "slug": "my-project1107",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/모바일로고1.png",
+    "icon": "./assets/logo1.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/로고2.png",
+      "image": "./assets/logo2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
