@@ -9,6 +9,7 @@ export default function Home() {
     toggleMedicationNotification,
     removeMedication,
     updateHistoryForToday,
+    toggleTimeTakenStatus,
   } = useContext(MedicationContext);
 
   // 약 삭제 확인 알림
@@ -34,28 +35,38 @@ export default function Home() {
           <View style={styles.item}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.period}>복용 기간: {item.period}</Text>
+            <Text style={styles.stock}>
+              남은 재고: {item.stock} {item.stock > 0 ? '' : '(재고 없음)'}
+            </Text>
             <Text style={styles.timesTitle}>복용 시간:</Text>
             {item.reminderTimes?.length > 0 ? (
               item.reminderTimes.map((time, index) => (
-                <Text key={`${item.id}-${index}`} style={styles.reminderTime}>
-                  - {time}
-                </Text>
+                <View key={`${item.id}-${index}`} style={styles.reminderItem}>
+                  <Text style={styles.reminderTime}>
+                    - {time.time} ({time.taken ? '✅ 완료' : '미완료'})
+                  </Text>
+                  <Button
+                    title={time.taken ? '복용 취소' : '복용 완료'}
+                    onPress={() => {
+                      toggleTimeTakenStatus(item.id, time.time); // 복용 시간별 상태 토글
+                      updateHistoryForToday(); // History 업데이트
+                    }}
+                  />
+                </View>
               ))
             ) : (
               <Text style={styles.noTimes}>복용 시간이 설정되지 않았습니다.</Text>
             )}
             <View style={styles.toggleContainer}>
-              <Text>알림 {item.notificationsEnabled ? '켜짐' : '꺼짐'}</Text>
+              <Text style={styles.toggleText}>
+                알림: {item.notificationsEnabled ? '켜짐' : '꺼짐'}
+              </Text>
               <Switch
                 value={item.notificationsEnabled}
                 onValueChange={() => toggleMedicationNotification(item.id)}
               />
             </View>
             <View style={styles.buttons}>
-              <Button
-                title={item.taken ? '✅ 완료' : '복용 완료'}
-                onPress={() => toggleMedicationStatus(item.id)}
-              />
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => confirmDelete(item.id)}
@@ -67,7 +78,7 @@ export default function Home() {
         )}
       />
       <Button
-        title="복용 완료 기록"
+        title="오늘의 복용 상태 기록하기"
         onPress={updateHistoryForToday}
       />
     </View>
@@ -86,8 +97,15 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 18, fontWeight: 'bold' },
   period: { fontSize: 14, color: '#666', marginTop: 5 },
+  stock: { fontSize: 14, color: '#666', marginBottom: 5 },
   timesTitle: { fontSize: 16, marginTop: 10 },
   reminderTime: { fontSize: 14, color: '#444', marginLeft: 10 },
+  reminderItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   noTimes: { fontSize: 14, color: 'red', marginLeft: 10 },
   toggleContainer: {
     flexDirection: 'row',
@@ -103,4 +121,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   deleteButtonText: { color: 'white', fontWeight: 'bold' },
+  toggleText: {
+    fontSize: 14,
+    color: '#444',
+    marginRight: 10,
+  },
 });
