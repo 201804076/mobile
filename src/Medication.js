@@ -24,13 +24,14 @@ Notifications.setNotificationHandler({
 });
 
 export default function Medication() {
-  const { addMedication, notificationsEnabled } = useContext(MedicationContext);
+  const { addMedication } = useContext(MedicationContext);
   const [name, setName] = useState('');
   const [selectedDates, setSelectedDates] = useState({ start: null, end: null });
   const [reminderTimes, setReminderTimes] = useState([]);
   const [currentReminder, setCurrentReminder] = useState('');
+  const [dosePerDay, setDosePerDay] = useState('');
+  const [stock, setStock] = useState('');
 
-  // 알림 권한 요청
   useEffect(() => {
     const registerForPushNotificationsAsync = async () => {
       const { status } = await Notifications.getPermissionsAsync();
@@ -56,7 +57,6 @@ export default function Medication() {
     }
   };
 
-  // 복용 시간 추가
   const addReminderTime = () => {
     if (!currentReminder.trim()) {
       Alert.alert('복용 시간을 입력하세요!');
@@ -70,15 +70,28 @@ export default function Medication() {
     setCurrentReminder('');
   };
 
-  // 복용 시간 삭제
   const removeReminderTime = (time) => {
     setReminderTimes((prev) => prev.filter((t) => t !== time));
   };
 
-  // 알림 예약 함수
-  const scheduleNotification = async (name, date, time) => {
-    if (!notificationsEnabled) return;
+  const generateReminderTimes = () => {
+    if (!dosePerDay || isNaN(dosePerDay) || dosePerDay <= 0) {
+      Alert.alert('올바른 복용 횟수를 입력하세요!');
+      return;
+    }
 
+    const times = [];
+    const interval = Math.floor(24 / dosePerDay);
+
+    for (let i = 0; i < dosePerDay; i++) {
+      const hour = (i * interval).toString().padStart(2, '0');
+      times.push(`${hour}:00`);
+    }
+
+    setReminderTimes(times);
+  };
+
+  const scheduleNotification = async (name, date, time) => {
     const [hour, minute] = time.split(':').map(Number);
     const notificationDate = new Date(date);
     notificationDate.setHours(hour);
@@ -102,19 +115,23 @@ export default function Medication() {
       Alert.alert('복용 시작일과 종료일을 선택하세요!');
       return;
     }
-    if (reminderTimes.length === 0) {
-      Alert.alert('복용 시간을 최소 1개 이상 추가하세요!');
+    if (!dosePerDay || isNaN(dosePerDay) || dosePerDay <= 0) {
+      Alert.alert('올바른 복용 횟수를 입력하세요!');
+      return;
+    }
+    if (!stock || isNaN(stock) || stock <= 0) {
+      Alert.alert('재고를 입력하세요!');
       return;
     }
 
-    // 약 추가
     addMedication({
       name,
       period: `${selectedDates.start} ~ ${selectedDates.end}`,
+      dosePerDay: parseInt(dosePerDay),
+      stock: parseInt(stock),
       reminderTimes,
     });
 
-    // 알림 예약
     let currentDate = new Date(selectedDates.start);
     const endDate = new Date(selectedDates.end);
 
@@ -122,63 +139,79 @@ export default function Medication() {
       for (const time of reminderTimes) {
         await scheduleNotification(name, currentDate.toISOString().split('T')[0], time);
       }
-      currentDate.setDate(currentDate.getDate() + 1); // 다음 날로 이동
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    Alert.alert('약이 추가되고 알림이 설정되었습니다!');
+    Alert.alert('약이 추가되었습니다!');
     setName('');
     setSelectedDates({ start: null, end: null });
     setReminderTimes([]);
+    setDosePerDay('');
+    setStock('');
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
-  <View style={styles.container}>
-    <Text style={styles.title}>새로운 약 추가</Text>
-    <TextInput
-      style={styles.input}
-      placeholder="약 이름 입력"
-      value={name}
-      onChangeText={setName}
-    />
-    <Text style={styles.subTitle}>복용 기간 선택</Text>
-    <Calendar
-      markedDates={{
-        ...(selectedDates.start && { [selectedDates.start]: { selected: true, selectedColor: 'blue' } }),
-        ...(selectedDates.end && { [selectedDates.end]: { selected: true, selectedColor: 'blue' } }),
-      }}
-      onDayPress={handleDayPress}
-    />
-    {selectedDates.start && selectedDates.end && (
-      <Text style={styles.periodText}>
-        복용 기간: {selectedDates.start} ~ {selectedDates.end}
-      </Text>
-    )}
-    <Text style={styles.subTitle}>복용 시간 추가</Text>
-    <View style={styles.timeInputContainer}>
-      <TextInput
-        style={styles.input}
-        placeholder="예: 08:00"
-        value={currentReminder}
-        onChangeText={setCurrentReminder}
-        keyboardType="numeric"
-      />
-      <Button title="추가" onPress={addReminderTime} />
-    </View>
-    <View>
-      {reminderTimes.map((time, index) => (
-        <View key={`${time}-${index}`} style={styles.timeItem}>
-          <Text>{time}</Text>
-          <TouchableOpacity onPress={() => removeReminderTime(time)}>
-            <Text style={styles.deleteButton}>X</Text>
-          </TouchableOpacity>
+      <View style={styles.container}>
+        <Text style={styles.title}>새로운 약 추가</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="약 이름 입력"
+          value={name}
+          onChangeText={setName}
+        />
+        <Text style={styles.subTitle}>복용 기간 선택</Text>
+        <Calendar
+          markedDates={{
+            ...(selectedDates.start && { [selectedDates.start]: { selected: true, selectedColor: 'blue' } }),
+            ...(selectedDates.end && { [selectedDates.end]: { selected: true, selectedColor: 'blue' } }),
+          }}
+          onDayPress={handleDayPress}
+        />
+        {selectedDates.start && selectedDates.end && (
+          <Text style={styles.periodText}>
+            복용 기간: {selectedDates.start} ~ {selectedDates.end}
+          </Text>
+        )}
+        <TextInput
+          style={styles.input}
+          placeholder="하루 복용 횟수 (예: 3)"
+          value={dosePerDay}
+          onChangeText={setDosePerDay}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="재고량 입력 (예: 30)"
+          value={stock}
+          onChangeText={setStock}
+          keyboardType="numeric"
+        />
+        <View>
+          <Text style={styles.subTitle}>복용 시간 추가</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="예: 08:00"
+            value={currentReminder}
+            onChangeText={setCurrentReminder}
+          />
+          <Button title="시간 추가" onPress={addReminderTime} />
         </View>
-      ))}
-    </View>
-    <Button title="약 추가" onPress={handleAddMedication} />
-  </View>
-</ScrollView>
-
+        <FlatList
+          data={reminderTimes}
+          keyExtractor={(item, index) => `${item}-${index}`}
+          renderItem={({ item }) => (
+            <View style={styles.timeItem}>
+              <Text>{item}</Text>
+              <TouchableOpacity onPress={() => removeReminderTime(item)}>
+                <Text style={styles.deleteButton}>X</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+        <Button title="약 추가" onPress={handleAddMedication} />
+      </View>
+    </ScrollView>
   );
 }
 
@@ -189,7 +222,6 @@ const styles = StyleSheet.create({
   subTitle: { fontSize: 18, marginBottom: 10 },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 20, borderRadius: 5 },
   periodText: { fontSize: 16, color: 'green', marginVertical: 10, textAlign: 'center' },
-  timeInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   timeItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 10, borderBottomWidth: 1, borderColor: '#ccc' },
   deleteButton: { color: 'red', fontWeight: 'bold' },
 });
